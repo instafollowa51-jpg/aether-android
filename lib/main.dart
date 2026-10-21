@@ -601,4 +601,286 @@ class _LosslessHomeScreenState extends State<LosslessHomeScreen> {
                       children: [
                         SizedBox(
                           width: 75,
-                          child: Text('${band.centerFrequency.round()} 
+                          child: Text('${band.centerFrequency.round()} Hz'),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            min: params.minDecibels,
+                            max: params.maxDecibels,
+                            value: gain,
+                            onChanged: _bitPerfectMode ? null : band.setGain,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniGlassPlayer() {
+    final t = _currentTrack!;
+    return GestureDetector(
+      onTap: _openFullScreenPlayer,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withOpacity(0.22)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: '$_serverUrl/api/cover/${t.msgId}',
+                width: 46,
+                height: 46,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                  Text(
+                    '${t.artist} • ${t.hiResBadge}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFFFFD60A)),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.radio_rounded, size: 20),
+              tooltip: 'Start Smart Radio',
+              onPressed: _startSmartRadio,
+            ),
+            StreamBuilder<bool>(
+              stream: _player.playingStream,
+              builder: (context, snap) {
+                final playing = snap.data ?? false;
+                return IconButton(
+                  icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_fill, size: 34),
+                  onPressed: () => playing ? _player.pause() : _player.play(),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.skip_next_rounded),
+              onPressed: _skipNext,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openFullScreenPlayer() {
+    if (_currentTrack == null) return;
+    final t = _currentTrack!;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.9,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: _dominantColor.withOpacity(0.28),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white38,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: CachedNetworkImage(
+                    imageUrl: '$_serverUrl/api/cover/${t.msgId}',
+                    width: 280,
+                    height: 280,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD60A).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    t.hiResBadge,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD60A),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  t.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${t.artist} — ${t.album}',
+                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.7)),
+                ),
+                const SizedBox(height: 20),
+                StreamBuilder<Duration>(
+                  stream: _player.positionStream,
+                  builder: (context, snap) {
+                    final pos = snap.data ?? Duration.zero;
+                    final dur = _player.duration ?? Duration(seconds: t.duration.round());
+                    final maxSec = dur.inSeconds > 0 ? dur.inSeconds.toDouble() : 1.0;
+                    return Column(
+                      children: [
+                        Slider(
+                          value: pos.inSeconds.toDouble().clamp(0, maxSec),
+                          max: maxSec,
+                          onChanged: (v) => _player.seek(Duration(seconds: v.round())),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('${pos.inMinutes}:${(pos.inSeconds % 60).toString().padLeft(2, '0')}'),
+                            Text('${dur.inMinutes}:${(dur.inSeconds % 60).toString().padLeft(2, '0')}'),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.skip_previous_rounded, size: 40),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _skipPrev();
+                      },
+                    ),
+                    StreamBuilder<bool>(
+                      stream: _player.playingStream,
+                      builder: (context, snap) {
+                        final playing = snap.data ?? false;
+                        return IconButton(
+                          icon: Icon(
+                            playing ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                            size: 68,
+                          ),
+                          onPressed: () => playing ? _player.pause() : _player.play(),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.skip_next_rounded, size: 40),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _skipNext();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomGlassNav() {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+        child: BottomNavigationBar(
+          currentIndex: _selectedTab,
+          onTap: (i) => setState(() => _selectedTab = i),
+          backgroundColor: Colors.white.withOpacity(0.06),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: const Color(0xFFFFD60A),
+          unselectedItemColor: Colors.white60,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.library_music), label: 'Songs'),
+            BottomNavigationBarItem(icon: Icon(Icons.album), label: 'Albums'),
+            BottomNavigationBarItem(icon: Icon(Icons.high_quality), label: '24-Bit'),
+            BottomNavigationBarItem(icon: Icon(Icons.lyrics), label: 'Lyrics'),
+            BottomNavigationBarItem(icon: Icon(Icons.graphic_eq), label: 'EQ & DSP'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showServerSetupDialog() {
+    final ctrl = TextEditingController(text: _serverUrl);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Telegram Bridge Server URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter the URL of your Telegram Lossless Bridge (Termux localhost or free HuggingFace / Render cloud URL):',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(hintText: 'http://127.0.0.1:7860'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('server_url', ctrl.text.trim());
+              setState(() => _serverUrl = ctrl.text.trim());
+              if (context.mounted) Navigator.pop(context);
+              _fetchCatalogue();
+            },
+            child: const Text('Save & Connect'),
+          ),
+        ],
+      ),
+    );
+  }
+}
