@@ -1,0 +1,20 @@
+name: aether_lossless
+description: Bit-Perfect 16-Bit/24-Bit Lossless Android Music Player powered by Telegram Cloud.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  just_audio: ^0.9.40
+  audio_session: ^0.1.21
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  cached_network_image: ^3.4.1
+  palette_generator: ^0.3.3+4
+
+flutter:
+  uses-material-design: true
