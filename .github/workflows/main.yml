@@ -1,0 +1,47 @@
+name: Build Aether Lossless Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Generate Android Wrapper & Inject Lossless Audio Permissions
+        run: |
+          flutter create --platforms=android --org com.anik --project-name aether_lossless .
+          python3 -c '
+          p = "android/app/src/main/AndroidManifest.xml"
+          s = open(p).read()
+          perms = "<uses-permission android:name=\"android.permission.INTERNET\"/>\n    <uses-permission android:name=\"android.permission.WAKE_LOCK\"/>\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\"/>\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK\"/>\n    <application android:usesCleartextTraffic=\"true\" "
+          s = s.replace("<application", perms, 1)
+          open(p, "w").write(s)
+          '
+
+      - name: Install Dependencies & Build Release APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload Ready-to-Install Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aether-Lossless-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
